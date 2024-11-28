@@ -44,9 +44,3 @@ The **Sign Language Interpreter Application** is a Flask-based web application t
 1. Python 3.9+ (recommended version)
 2. Pip (Python package manager)
 3. A virtual environment for dependency management.
-
-### Steps
-1. **Clone the Repository**:
-   ```bash
-   git clone <repository_url>
-   cd <project_directory>
