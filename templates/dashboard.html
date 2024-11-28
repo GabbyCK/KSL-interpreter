@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HandSignify Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+    <style>
+        
+            
+            
+            html, body {
+            background-color: #1c1c1c;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Raleway', sans-serif;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: #d2eff7;
+            overflow-x: hidden;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Navbar styles */
+        .navbar {
+            background-color: rgba(51, 51, 51, 0.8); /* Semi-transparent for better visibility */
+        }
+
+        .navbar-brand {
+            font-size: 1.5em;
+            font-weight: 500;
+            color: #d2eff7;
+        }
+
+        .navbar-nav .nav-link {
+            color: #d2eff7;
+        }
+
+        .auth-buttons a {
+            text-decoration: none;
+            background-color: transparent;
+            color: #d2eff7;
+            border: 1px solid #d2eff7;
+            padding: 5px 15px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+
+        .navbar-nav .nav-link {
+            color: #d2eff7;
+            font-size: 1em;
+            transition: color 0.3s;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: #00acee; /* Highlight color on hover */
+        }
+
+        /* Main container */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            background-image: url('https://images.unsplash.com/photo-1612744192242-35cd7a7d35e6?q=80&w=873&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center;
+            color: rgba(210, 239, 247, 0.8);
+        }
+
+        .btn-start-camera {
+            background-color: transparent;
+            color: #d2eff7;
+            border: 1px solid #d2eff7;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .btn-start-camera:hover {
+            background-color: #00acee;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 3em;
+            font-weight: 300;
+            margin-bottom: 30px;
+        }
+
+        /* Camera viewport */
+        .camera-viewport {
+            width: 640px;
+            height: 480px;
+            background-color: black;
+            border: 2px solid #d2eff7;
+            display: none;
+            margin-top: 20px;
+        }
+        .prediction-result {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: #00acee;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+    </style>
+
+
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('home')}}">HandSignify</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{{ url_for('home')}}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('how_to_sign_page') }}">How to Sign</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('webcam_page') }}">Real-Time Prediction</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="upload-form">
+            <h3>Upload Image for Prediction</h3>
+            <div class="mb-3">
+                <label for="file" class="form-label">Select an Image</label>
+                <input type="file" class="form-control" id="file" name="file" required onchange="handleImageUpload(event)">
+            </div>
+
+            <button id="predictButton" class="btn btn-primary" onclick="predictImage()" disabled>Predict</button>
+
+            <!-- Prediction Result Display -->
+            <div id="prediction-result" class="prediction-result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // Function to handle image upload and enable the predict button
+        function handleImageUpload(event) {
+            var fileInput = event.target;
+            var predictButton = document.getElementById("predictButton");
+
+            // Enable the predict button if an image is selected
+            if (fileInput.files && fileInput.files[0]) {
+                predictButton.disabled = false;  // Enable the button
+            } else {
+                predictButton.disabled = true;  // Disable the button if no file selected
+            }
+        }
+
+        // Function to handle the prediction request
+        function predictImage() {
+            var form = new FormData();
+            var fileInput = document.getElementById("file");
+            var file = fileInput.files[0];
+            
+            if (!file) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            // Add the file to the form data
+            form.append("file", file);
+
+            // Make the prediction request
+            $.ajax({
+                url: "{{ url_for('predict') }}",  // Flask route to handle prediction
+                type: "POST",
+                data: form,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    // Assuming 'response' contains the prediction result
+                    var predictionResult = response.prediction;
+                    
+                    // Display prediction result in the 'prediction-result' div
+                    var resultDiv = document.getElementById("prediction-result");
+                    resultDiv.textContent = "Prediction: " + predictionResult;
+                    resultDiv.style.display = "block";  // Show the result
+                },
+                error: function(error) {
+                    alert("Error making prediction. Please try again.");
+                }
+            });
+        }
+    </script>
+    
+</body>
+</html>
